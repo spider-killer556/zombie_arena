@@ -1,5 +1,5 @@
 # Zombie-Arena
-Rust version of the C++ game Zombie Arena published by @PacktPublishing
+Slightly modified Rust version of the C++ game Zombie Arena published by @PacktPublishing
 
 ## Credits
 [John Horton and Packt](https://github.com/PacktPublishing/Beginning-Cpp-Game-Programming-Second-Edition): Original c++ version and game assets  
