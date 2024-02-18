@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_kira_audio::prelude::AudioSource;
 use bevy_asset_loader::prelude::*;
 
 use crate::state::GameState;

@@ -4,14 +4,49 @@ version = "0.1.0"
 edition = "2021"
 build = "build.rs"
 
-[dependencies]
-bevy = { version = "0.12.1", features = ["wav", "dynamic_linking"] }
-bevy_asset_loader = "0.19.1"
 
-strum = { version = "0.26.1", features = ["derive"] }
+[dependencies]
+# Main game crates
+bevy = { version = "0.12.1", default-features = false, features = [
+    "animation",
+    "bevy_asset",
+    "bevy_gilrs",
+    "bevy_scene",
+    "bevy_winit",
+    "bevy_core_pipeline",
+    "bevy_pbr",
+    "bevy_gltf",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_text",
+    "bevy_ui",
+    "multi-threaded",
+    "png",
+    "hdr",
+    "x11",
+    "bevy_gizmos",
+    "android_shared_stdcxx",
+    "tonemapping_luts",
+    "default_font",
+    "webgl2",
+
+    # Optional features
+    "dynamic_linking",
+] }
+bevy_asset_loader = "0.19.1"
+bevy_ecs_tilemap = "0.12.0"
+leafwing-input-manager = "0.11.2"
+bevy_kira_audio = { version = "0.18", features = ["wav"] }
+bevy_tweening = "0.9"
+
+# These deps should be in sync with bevy's deps versions
 winit = "0.28"
 image = "0.24"
 
+# Helper crates
+itertools = "0.12"
+strum = { version = "0.26.1", features = ["derive"] }
+rand = "0.8.5"
 
 [build-dependencies]
 embed-resource = "2.4"

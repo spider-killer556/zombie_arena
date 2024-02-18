@@ -42,8 +42,6 @@ impl MainMenuButtons {
 }
 
 fn main_menu(mut commands: Commands, graphics: Res<Graphics>, fonts: Res<Fonts>) {
-    commands.spawn((Camera2dBundle::default(), MainMenu));
-
     commands
         .spawn((
             MainMenu,
