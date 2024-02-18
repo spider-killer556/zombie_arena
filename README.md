@@ -1,4 +1,4 @@
-# Zombie-Arena
+# Zombie Arena
 Slightly modified Rust version of the C++ game Zombie Arena published by @PacktPublishing
 
 ## Credits
