@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy_kira_audio::prelude::AudioSource;
 use bevy_asset_loader::prelude::*;
+use bevy_kira_audio::prelude::{AudioSource, *};
 
 use crate::state::GameState;
 
@@ -8,6 +8,7 @@ pub struct AssetsPlugin;
 
 impl Plugin for AssetsPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(AudioPlugin);
         app.add_loading_state(
             LoadingState::new(GameState::Loading)
                 .continue_to_state(GameState::MainMenu)
@@ -46,6 +47,8 @@ pub struct Graphics {
     pub map: Handle<Image>,
     #[asset(path = "graphics/player.png")]
     pub player: Handle<Image>,
+    #[asset(path = "graphics/heart.png")]
+    pub heart: Handle<Image>,
 }
 
 #[derive(AssetCollection, Resource)]

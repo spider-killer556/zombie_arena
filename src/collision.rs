@@ -7,11 +7,11 @@ use bevy_tweening::{lens::TransformPositionLens, *};
 
 use crate::{
     assets::{Graphics, Sounds},
-    combat::{CombatBundle, Health},
+    combat::{AttackDelay, CombatBundle, Health},
     powerups::{PowerUp, PowerupSpawnChance, PowerupTimer},
     state::GameState,
     survivour::{Bullet, Survivour},
-    waves::ZombieCount,
+    waves::{Score, ZombieCount},
     zombies::Zombie,
 };
 
@@ -23,7 +23,12 @@ impl Plugin for CollisionPlugin {
 
         app.add_systems(
             Update,
-            (collision_zombies_bullets, survivour_health_pickup).run_if(in_state(GameState::Playing)),
+            (
+                collision_zombies_bullets,
+                survivour_health_pickup,
+                collision_zombies_survivour,
+            )
+                .run_if(in_state(GameState::Playing)),
         )
         .add_systems(
             Update,
@@ -53,6 +58,7 @@ fn collision_zombies_bullets(
     sounds: Res<Sounds>,
     audio: Res<Audio>,
     mut zombie_count: ResMut<ZombieCount>,
+    mut score: ResMut<Score>,
 ) {
     for (
         zombie_entity,
@@ -82,6 +88,7 @@ fn collision_zombies_bullets(
                 continue;
             }
             zombie_count.decrease_count(zombie);
+            score.increase(zombie);
             health_pickup_spawn(
                 &mut commands,
                 &graphics,
@@ -153,6 +160,7 @@ fn health_pickup_spawn(
 fn survivour_health_pickup(
     mut commands: Commands,
     mut survivour: Query<(&Transform, &CollisionSize, &mut Health), With<Survivour>>,
+
     powerups: Query<(Entity, &Transform, &CollisionSize, &PowerUp)>,
     audio: Res<Audio>,
     sounds: Res<Sounds>,
@@ -171,10 +179,55 @@ fn survivour_health_pickup(
             }
             match powerup {
                 PowerUp::Health => {
-                    health.0 += if health.0 < 3 { 1 } else { 0 };
+                    health.0 += if health.0 < 5 {
+                        1
+                    } else {
+                        warn!("Health not updated!");
+                        0
+                    };
                     audio.play(sounds.pickup.clone());
                     commands.entity(entity).despawn();
                 }
+            }
+        }
+    }
+}
+
+fn collision_zombies_survivour(
+    mut zombies: Query<
+        (&Transform, &CollisionSize, &mut AttackDelay),
+        (With<Zombie>, Without<Survivour>),
+    >,
+    mut survivour: Query<
+        (&Transform, &CollisionSize, &mut Health),
+        (With<Survivour>, Without<Zombie>),
+    >,
+    audio: Res<Audio>,
+    sounds: Res<Sounds>,
+    mut game_state: ResMut<NextState<GameState>>,
+    time: Res<Time>,
+) {
+    for (zombie_transform, zombie_size, mut attack_delay) in zombies.iter_mut() {
+        attack_delay.tick(time.delta());
+
+        for (sv_tf, survivour_size, mut health) in survivour.iter_mut() {
+            let collision = collide_aabb::collide(
+                sv_tf.translation,
+                survivour_size.0,
+                zombie_transform.translation,
+                zombie_size.0,
+            );
+
+            if collision.is_none() {
+                continue;
+            }
+            if attack_delay.finished() {
+                health.0 -= 1;
+                audio.play(sounds.hit.clone());
+                attack_delay.reset();
+            }
+            if health.0 <= 0 {
+                game_state.set(GameState::GameOver);
             }
         }
     }

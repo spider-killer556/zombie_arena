@@ -29,9 +29,6 @@ bevy = { version = "0.12.1", default-features = false, features = [
     "tonemapping_luts",
     "default_font",
     "webgl2",
-
-    # Optional features
-    "dynamic_linking",
 ] }
 bevy_asset_loader = "0.19.1"
 bevy_ecs_tilemap = "0.12.0"

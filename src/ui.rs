@@ -11,8 +11,18 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::MainMenu), main_menu)
-            .add_systems(Update, button_system.run_if(in_state(GameState::MainMenu)))
+            .add_systems(
+                Update,
+                (button_system, enter_to_play).run_if(in_state(GameState::MainMenu)),
+            )
             .add_systems(OnExit(GameState::MainMenu), cleanup_main_menu);
+
+        app.add_systems(OnEnter(GameState::GameOver), game_over_ui)
+            .add_systems(
+                Update,
+                update_game_over.run_if(in_state(GameState::GameOver)),
+            )
+            .add_systems(OnExit(GameState::GameOver), cleanup_game_over);
     }
 }
 
@@ -27,17 +37,19 @@ const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
 #[derive(Component, EnumIter, Copy, Clone)]
 enum MainMenuButtons {
     Play,
-    Settings,
     Quit,
 }
 
-impl MainMenuButtons {
-    fn to_string(&self) -> String {
-        match self {
-            MainMenuButtons::Play => "Play".to_string(),
-            MainMenuButtons::Settings => "Settings".to_string(),
-            MainMenuButtons::Quit => "Quit".to_string(),
-        }
+impl std::fmt::Display for MainMenuButtons {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                MainMenuButtons::Play => "Play",
+                MainMenuButtons::Quit => "Quit",
+            }
+        )
     }
 }
 
@@ -75,56 +87,37 @@ fn main_menu(mut commands: Commands, graphics: Res<Graphics>, fonts: Res<Fonts>)
                     height: Val::Percent(100.),
                     justify_content: JustifyContent::Center,
                     align_items: AlignItems::Center,
-                    flex_direction: FlexDirection::Column,
                     ..default()
                 },
                 ..default()
             },
         ))
         .with_children(|ui| {
-            ui.spawn(NodeBundle {
-                style: Style {
-                    width: Val::Percent(35.0),
-                    height: Val::Percent(35.0),
-                    flex_direction: FlexDirection::Column,
-                    justify_content: JustifyContent::SpaceBetween,
-                    align_items: AlignItems::Center,
+            ui.spawn(TextBundle {
+                text: Text {
+                    sections: vec![TextSection {
+                        value: "Press Enter to start!".to_string(),
+                        style: TextStyle {
+                            font: fonts.zombiecontrol.clone(),
+                            font_size: 100.0,
+                            color: Color::rgb(0.9, 0.9, 0.9),
+                        },
+                    }],
+                    alignment: TextAlignment::Center,
                     ..default()
                 },
                 ..default()
-            })
-            .with_children(|ui| {
-                MainMenuButtons::iter().for_each(|button| {
-                    ui.spawn((
-                        ButtonBundle {
-                            style: Style {
-                                width: Val::Px(150.0),
-                                height: Val::Px(65.0),
-                                // horizontally center child text
-                                justify_content: JustifyContent::Center,
-                                // vertically center child text
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            border_color: BorderColor(Color::BLACK),
-                            background_color: NORMAL_BUTTON.into(),
-                            ..default()
-                        },
-                        button,
-                    ))
-                    .with_children(|parent| {
-                        parent.spawn(TextBundle::from_section(
-                            button.to_string(),
-                            TextStyle {
-                                font: fonts.zombiecontrol.clone(),
-                                font_size: 40.0,
-                                color: Color::rgb(0.9, 0.9, 0.9),
-                            },
-                        ));
-                    });
-                });
             });
         });
+}
+
+fn enter_to_play(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Return) {
+        next_state.set(GameState::Playing);
+    }
 }
 
 fn button_system(
@@ -144,10 +137,6 @@ fn button_system(
                         println!("Play button pressed");
                         next_state.set(GameState::Playing);
                     }
-                    MainMenuButtons::Settings => {
-                        println!("Settings button pressed");
-                        next_state.set(GameState::Settings);
-                    }
                     MainMenuButtons::Quit => {
                         println!("Quit button pressed");
                         app_exit.send(AppExit);
@@ -165,6 +154,97 @@ fn button_system(
 }
 
 fn cleanup_main_menu(mut commands: Commands, query: Query<Entity, With<MainMenu>>) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+}
+
+// All the stuff related to the game over screen
+#[derive(Component)]
+pub struct GameOver;
+
+fn game_over_ui(mut commands: Commands, graphics: Res<Graphics>, fonts: Res<Fonts>) {
+    commands
+        .spawn((
+            GameOver,
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.),
+                    height: Val::Percent(100.),
+                    ..default()
+                },
+                ..default()
+            },
+        ))
+        .with_children(|ui| {
+            ui.spawn(ImageBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    ..default()
+                },
+                image: graphics.background.clone().into(),
+                ..default()
+            });
+        });
+
+    commands
+        .spawn((
+            GameOver,
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.),
+                    height: Val::Percent(100.),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                ..default()
+            },
+        ))
+        .with_children(|ui| {
+            ui.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::SpaceEvenly,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                ..default()
+            })
+            .with_children(|ui| {
+                ui.spawn(TextBundle::from_section(
+                    "Game Over",
+                    TextStyle {
+                        font: fonts.zombiecontrol.clone(),
+                        font_size: 72.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                    },
+                ));
+                ui.spawn(TextBundle::from_section(
+                    "Press Space to restart!",
+                    TextStyle {
+                        font: fonts.zombiecontrol.clone(),
+                        font_size: 72.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                    },
+                ));
+            });
+        });
+}
+
+fn update_game_over(
+    mut next_state: ResMut<NextState<GameState>>,
+    keyboard_input: Res<Input<KeyCode>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        next_state.set(GameState::Playing);
+    }
+}
+
+fn cleanup_game_over(mut commands: Commands, query: Query<Entity, With<GameOver>>) {
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();
     }

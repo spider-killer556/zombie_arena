@@ -12,9 +12,7 @@ pub struct WavesPlugin;
 
 impl Plugin for WavesPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Wave>().init_resource::<ZombieCount>();
-
-        app.add_systems(OnEnter(GameState::Playing), show_wave);
+        app.add_systems(OnEnter(GameState::Playing), init_wave_stats);
         app.add_systems(
             Update,
             update_wave_text
@@ -24,12 +22,13 @@ impl Plugin for WavesPlugin {
             Update,
             update_zombies_remaining.run_if(in_state(GameState::Playing)),
         )
+        .add_systems(Update, update_score.run_if(in_state(GameState::Playing)))
         .add_systems(
             Update,
-            (generate_wave)
-                .chain()
+            generate_wave
                 .run_if(in_state(GameState::Playing).and_then(resource_equals(ZombieCount::ZERO))),
         );
+        // app.add_systems(OnExit(GameState::Playing), reset_first_wave);
     }
 }
 
@@ -47,6 +46,22 @@ impl Default for Wave {
         }
     }
 }
+
+#[derive(Resource, Default)]
+pub struct Score(pub i32);
+
+impl Score {
+    pub fn increase(&mut self, zombie: &Zombie) {
+        match zombie {
+            Zombie::Chaser => self.0 += 1,
+            Zombie::Crawler => self.0 += 3,
+            Zombie::Bloater => self.0 += 5,
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct ScoreText;
 
 #[derive(Component)]
 pub struct WaveText;
@@ -78,7 +93,12 @@ impl ZombieCount {
     }
 }
 
-fn show_wave(mut cmds: Commands, wave: Res<Wave>, fonts: Res<Fonts>) {
+fn init_wave_stats(mut cmds: Commands, fonts: Res<Fonts>) {
+    cmds.insert_resource(Wave::default());
+    cmds.insert_resource(ZombieCount::default());
+    cmds.insert_resource(FirstWave::default());
+    cmds.insert_resource(Score::default());
+
     cmds.spawn(NodeBundle {
         style: Style {
             width: Val::Percent(100.0),
@@ -97,7 +117,7 @@ fn show_wave(mut cmds: Commands, wave: Res<Wave>, fonts: Res<Fonts>) {
     .with_children(|parent| {
         parent.spawn((
             TextBundle::from_section(
-                format!("Wave {}", wave.count),
+                format!("Wave {}", 1),
                 TextStyle {
                     font: fonts.zombiecontrol.clone(),
                     font_size: 40.0,
@@ -105,6 +125,17 @@ fn show_wave(mut cmds: Commands, wave: Res<Wave>, fonts: Res<Fonts>) {
                 },
             ),
             WaveText,
+        ));
+        parent.spawn((
+            TextBundle::from_section(
+                "Score: 0",
+                TextStyle {
+                    font: fonts.zombiecontrol.clone(),
+                    font_size: 40.0,
+                    color: Color::WHITE,
+                },
+            ),
+            ScoreText,
         ));
         parent.spawn((
             TextBundle::from_section(
@@ -119,9 +150,10 @@ fn show_wave(mut cmds: Commands, wave: Res<Wave>, fonts: Res<Fonts>) {
         ));
     });
 
-    println!("Wave {}", wave.count);
+    println!("Wave {}", 1);
 }
 
+#[derive(Resource)]
 struct FirstWave(pub bool);
 
 impl Default for FirstWave {
@@ -135,7 +167,7 @@ fn generate_wave(
     mut wave: ResMut<Wave>,
     map_bounds: Query<&MapBounds>,
     graphics: Res<Graphics>,
-    mut first_wave: Local<FirstWave>,
+    mut first_wave: ResMut<FirstWave>,
     time: Res<Time>,
 ) {
     if !wave.timer.tick(time.delta()).finished() {
@@ -202,5 +234,11 @@ fn update_zombies_remaining(
     let zombies_count = zombies.total();
     for mut text in zombie_left_text.iter_mut() {
         text.sections[0].value = format!("Zombies Left: {}", zombies_count);
+    }
+}
+
+fn update_score(score: Res<Score>, mut score_text: Query<&mut Text, With<ScoreText>>) {
+    for mut text in score_text.iter_mut() {
+        text.sections[0].value = format!("Score: {}", score.0);
     }
 }

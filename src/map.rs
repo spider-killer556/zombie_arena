@@ -10,7 +10,8 @@ impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(TilemapPlugin);
 
-        app.add_systems(OnEnter(GameState::Playing), create_map);
+        app.add_systems(OnEnter(GameState::Playing), create_map)
+            .add_systems(OnExit(GameState::Playing), cleanup_map);
     }
 }
 
@@ -57,4 +58,10 @@ fn create_map(mut commands: Commands, graphics: Res<Graphics>) {
         transform: get_tilemap_center_transform(&map_size, &grid_size, &map_type, 0.0),
         ..Default::default()
     });
+}
+
+fn cleanup_map(mut commands: Commands, query: Query<Entity, With<MapBounds>>) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
 }

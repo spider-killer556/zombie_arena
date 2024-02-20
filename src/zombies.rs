@@ -5,19 +5,21 @@ use bevy::prelude::*;
 
 use crate::{
     assets::Graphics,
-    collision::CollisionSize,
+    collision::{BloodTimer, CollisionSize},
     combat::{AttackDelay, CombatBundle, Health},
     movement::MovementSpeed,
     powerups::PowerupSpawnChance,
     state::GameState,
     survivour::Survivour,
+    waves::ZombieCount,
 };
 
 pub struct ZombiesPlugin;
 
 impl Plugin for ZombiesPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, zombies_walk.run_if(in_state(GameState::Playing)));
+        app.add_systems(Update, zombies_walk.run_if(in_state(GameState::Playing)))
+            .add_systems(OnExit(GameState::Playing), (despawn_zombies, despawn_blood));
     }
 }
 
@@ -136,4 +138,23 @@ fn zombies_walk(
 
         zombie_transform.rotation = Quat::from_rotation_z(angle);
     }
+}
+
+fn despawn_blood(mut commands: Commands, blood: Query<(Entity, &BloodTimer)>) {
+    for (entity, _) in blood.iter() {
+        commands.entity(entity).despawn();
+    }
+}
+
+fn despawn_zombies(
+    mut commands: Commands,
+    zombies: Query<Entity, With<Zombie>>,
+    mut zombie_count: ResMut<ZombieCount>,
+) {
+    for zombie in zombies.iter() {
+        commands.entity(zombie).despawn();
+    }
+    zombie_count.chaser = 0;
+    zombie_count.crawler = 0;
+    zombie_count.bloater = 0;
 }

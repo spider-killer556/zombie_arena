@@ -1,9 +1,9 @@
-use crate::assets::Sounds;
+use crate::assets::{Fonts, Sounds};
 use crate::collision::CollisionSize;
 use crate::combat::{AttackDelay, CombatBundle, Health};
 use crate::map::MapBounds;
 use crate::movement::MovementSpeed;
-use crate::{assets::Graphics, state::GameState, world_camera::WorldCamera};
+use crate::{assets::Graphics, camera::GameCamera, state::GameState};
 use bevy::prelude::*;
 use bevy::utils::Duration;
 use bevy::window::PrimaryWindow;
@@ -14,8 +14,7 @@ pub struct SurvivourPlugin;
 
 impl Plugin for SurvivourPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(InputManagerPlugin::<SurvivourActions>::default())
-            .add_plugins(AudioPlugin);
+        app.add_plugins(InputManagerPlugin::<SurvivourActions>::default());
 
         app.init_resource::<MouseWorldCoords>();
 
@@ -37,7 +36,13 @@ impl Plugin for SurvivourPlugin {
                 )
                     .chain()
                     .run_if(in_state(GameState::Playing)),
+            )
+            .add_systems(
+                Update,
+                update_heart_health.run_if(in_state(GameState::Playing)),
             );
+
+        app.add_systems(OnExit(GameState::Playing), cleanup);
     }
 }
 
@@ -107,10 +112,10 @@ fn spawn_cursor(mut commands: Commands, graphics: Res<Graphics>, mut window: Que
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
-                custom_size: Some(Vec2::new(32.0, 32.0)),
+                custom_size: Some(Vec2::new(48.0, 48.0)),
                 ..default()
             },
-            texture: graphics.aim.clone(),
+            texture: graphics.crosshair.clone(),
             transform: Transform::from_xyz(0., 0., 100.),
             ..default()
         },
@@ -151,7 +156,13 @@ fn update_cursor(
     tf.translation.y = coords.y;
 }
 
-fn spawn_survivour(mut cmds: Commands, graphics: Res<Graphics>) {
+#[derive(Component)]
+pub struct HealthHeart;
+
+#[derive(Component)]
+pub struct HealthText;
+
+fn spawn_survivour(mut cmds: Commands, graphics: Res<Graphics>, font: Res<Fonts>) {
     cmds.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -168,7 +179,7 @@ fn spawn_survivour(mut cmds: Commands, graphics: Res<Graphics>) {
         },
         Survivour,
         CombatBundle {
-            health: Health(3),
+            health: Health(5),
             attack_delay: AttackDelay {
                 delay: Timer::new(Duration::from_secs_f32(0.6), TimerMode::Once),
             },
@@ -176,20 +187,61 @@ fn spawn_survivour(mut cmds: Commands, graphics: Res<Graphics>) {
         MovementSpeed { speed: 10.0 },
         CollisionSize(Vec2::new(32.0, 32.0)),
     ));
+
+    cmds.spawn((
+        HealthHeart,
+        SpriteBundle {
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(24.0 + 10.0, 24.0 + 10.0)),
+                ..default()
+            },
+            transform: Transform::from_xyz(0.0, 0.0, SURVIVOUR_Z),
+            texture: graphics.heart.clone(),
+            ..default()
+        },
+    ))
+    .with_children(|parent| {
+        parent.spawn((
+            Text2dBundle {
+                text: Text {
+                    sections: vec![TextSection {
+                        value: "5".to_string(),
+                        style: TextStyle {
+                            font: font.zombiecontrol.clone(),
+                            font_size: 16.0,
+                            color: Color::WHITE,
+                        },
+                    }],
+                    alignment: TextAlignment::Right,
+                    ..default()
+                },
+                transform: Transform::from_xyz(0.0, 0.0, 0.1),
+                ..default()
+            },
+            HealthText,
+        ));
+    });
 }
 
 fn survivour_walks(
-    mut survivour_actions: Query<(
-        &ActionState<SurvivourActions>,
-        &mut Transform,
-        &MovementSpeed,
-    )>,
+    mut survivour_actions: Query<
+        (
+            &ActionState<SurvivourActions>,
+            &mut Transform,
+            &MovementSpeed,
+        ),
+        (With<Survivour>, Without<HealthHeart>),
+    >,
+    mut heart_tf: Query<&mut Transform, (With<HealthHeart>, Without<Survivour>)>,
     map_bounds: Query<&MapBounds>,
     time: Res<Time>,
 ) {
+    // There is only one survivour, but we check if he exists just in case
     let Ok((actions, mut tf, speed)) = survivour_actions.get_single_mut() else {
         return;
     };
+    let mut heart_tf = heart_tf.single_mut();
+    // There is only one map bounds
     let map_bounds = map_bounds.single();
 
     let mut delta = Vec2::splat(0.0);
@@ -214,7 +266,7 @@ fn survivour_walks(
 
     tf.translation += delta.extend(0.) * time.delta_seconds() * **speed;
 
-    // Clamp the player to the map bounds
+    // Clamp the player's translation to the map bounds
     tf.translation.x = tf
         .translation
         .x
@@ -223,10 +275,21 @@ fn survivour_walks(
         .translation
         .y
         .clamp(-map_bounds.y * 32.0 + 16.0, map_bounds.y * 32.0 - 16.0);
+    heart_tf.translation.x = tf.translation.x;
+    heart_tf.translation.y = tf.translation.y + 50.0;
+}
+
+fn update_heart_health(
+    health: Query<&Health, With<Survivour>>,
+    mut heart_text: Query<&mut Text, With<HealthText>>,
+) {
+    let health = health.single();
+    let mut heart_text = heart_text.single_mut();
+    heart_text.sections[0].value = health.0.to_string();
 }
 
 fn look_at_cursor(
-    mut survivour_tf: Query<&mut Transform, (With<Survivour>, Without<WorldCamera>)>,
+    mut survivour_tf: Query<&mut Transform, With<Survivour>>,
     coords: Res<MouseWorldCoords>,
 ) {
     let Ok(mut survivour_tf) = survivour_tf.get_single_mut() else {
@@ -241,8 +304,8 @@ fn look_at_cursor(
 }
 
 fn update_camera(
-    survivour_tf: Query<&Transform, (With<Survivour>, Without<WorldCamera>)>,
-    mut world_cam_tf: Query<&mut Transform, (With<WorldCamera>, Without<Survivour>)>,
+    survivour_tf: Query<&Transform, (With<Survivour>, Without<GameCamera>)>,
+    mut world_cam_tf: Query<&mut Transform, (With<GameCamera>, Without<Survivour>)>,
     window: Query<&Window>,
     map_bounds: Query<&MapBounds>,
 ) {
@@ -331,11 +394,36 @@ fn update_bullet(
 ) {
     for (entity, bullet, mut tf) in bullets.iter_mut() {
         if (tf.translation.truncate() - bullet.start_position).length() > 2000.0 {
-            // Remove bullet if it's too far from the player
+            // Remove bullet if it's too far from the survivour
             cmds.entity(entity).despawn_recursive();
         } else {
             let direction = tf.rotation.mul_vec3(Vec3::X);
             tf.translation += direction * bullet.speed * time.delta_seconds();
         }
     }
+}
+
+fn cleanup(
+    mut cmds: Commands,
+    mut window: Query<&mut Window>,
+    sv: Query<Entity, With<Survivour>>,
+    health_heart: Query<Entity, With<HealthHeart>>,
+    game_cursor: Query<Entity, With<GameCursor>>,
+    bullets: Query<Entity, With<Bullet>>,
+) {
+    for entity in sv.iter() {
+        cmds.entity(entity).despawn_recursive();
+    }
+    for entity in health_heart.iter() {
+        cmds.entity(entity).despawn_recursive();
+    }
+    for entity in game_cursor.iter() {
+        cmds.entity(entity).despawn_recursive();
+    }
+    for entity in bullets.iter() {
+        cmds.entity(entity).despawn();
+    }
+
+    let mut window = window.single_mut();
+    window.cursor.visible = true;
 }

@@ -15,7 +15,7 @@ mod state;
 mod survivour;
 mod ui;
 mod waves;
-mod world_camera;
+mod camera;
 mod zombies;
 
 use assets::AssetsPlugin;
@@ -26,7 +26,7 @@ use state::StatePlugin;
 use survivour::SurvivourPlugin;
 use ui::UiPlugin;
 use waves::WavesPlugin;
-use world_camera::WorldCameraPlugin;
+use camera::CameraPlugin;
 use zombies::ZombiesPlugin;
 
 fn main() {
@@ -34,7 +34,7 @@ fn main() {
         .add_plugins((
             GameConfPlugin,
             StatePlugin,
-            WorldCameraPlugin,
+            CameraPlugin,
             AssetsPlugin,
             UiPlugin,
             MapPlugin,
