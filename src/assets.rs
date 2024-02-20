@@ -21,8 +21,6 @@ impl Plugin for AssetsPlugin {
 
 #[derive(AssetCollection, Resource)]
 pub struct Graphics {
-    #[asset(path = "graphics/aim.png")]
-    pub aim: Handle<Image>,
     #[asset(path = "graphics/ammo_icon.png")]
     pub ammo_icon: Handle<Image>,
     #[asset(path = "graphics/ammo_pickup.png")]
