@@ -28,10 +28,10 @@ impl Plugin for WavesPlugin {
             generate_wave
                 .run_if(in_state(GameState::Playing).and_then(resource_equals(ZombieCount::ZERO))),
         );
-        // app.add_systems(OnExit(GameState::Playing), reset_first_wave);
     }
 }
 
+// Manage the wave in a single resource
 #[derive(Resource, Debug, Clone, PartialEq, Eq)]
 pub struct Wave {
     pub count: i32,
@@ -99,6 +99,7 @@ fn init_wave_stats(mut cmds: Commands, fonts: Res<Fonts>) {
     cmds.insert_resource(FirstWave::default());
     cmds.insert_resource(Score::default());
 
+    // Spawn the game HUD
     cmds.spawn(NodeBundle {
         style: Style {
             width: Val::Percent(100.0),
@@ -149,8 +150,6 @@ fn init_wave_stats(mut cmds: Commands, fonts: Res<Fonts>) {
             ZombieLeftText,
         ));
     });
-
-    println!("Wave {}", 1);
 }
 
 #[derive(Resource)]

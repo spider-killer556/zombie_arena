@@ -127,6 +127,7 @@ fn zombies_walk(
     };
 
     for (mut zombie_transform, speed) in zombies.iter_mut() {
+        // Calculate the angle between the zombie and the survivour
         let mut angle = (survivour_transform.translation.y - zombie_transform.translation.y)
             .atan2(survivour_transform.translation.x - zombie_transform.translation.x);
         if angle < 0.0 {
@@ -136,6 +137,7 @@ fn zombies_walk(
         zombie_transform.translation.x += **speed * angle.cos() * time.delta_seconds();
         zombie_transform.translation.y += **speed * angle.sin() * time.delta_seconds();
 
+        // Rotate the zombie to face the survivour
         zombie_transform.rotation = Quat::from_rotation_z(angle);
     }
 }

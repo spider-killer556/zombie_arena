@@ -19,6 +19,7 @@ impl Plugin for AssetsPlugin {
     }
 }
 
+// Load all the game assets
 #[derive(AssetCollection, Resource)]
 pub struct Graphics {
     #[asset(path = "graphics/ammo_icon.png")]
@@ -49,6 +50,7 @@ pub struct Graphics {
     pub heart: Handle<Image>,
 }
 
+//Load all the game sounds
 #[derive(AssetCollection, Resource)]
 pub struct Sounds {
     #[asset(path = "sound/hit.wav")]
@@ -67,6 +69,7 @@ pub struct Sounds {
     pub splat: Handle<AudioSource>,
 }
 
+// Load all the game font
 #[derive(AssetCollection, Resource)]
 pub struct Fonts {
     #[asset(path = "fonts/zombiecontrol.ttf")]
